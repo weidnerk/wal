@@ -99,8 +99,8 @@ namespace wal
         public static async Task<WalItem> GetDetail(string url)
         {
             var item = new WalItem();
-            string marker = "Walmart #";
             string itemNo = null;
+            var images = new List<string>();
 
             try
             {
@@ -112,6 +112,14 @@ namespace wal
                     string result = await content.ReadAsStringAsync();
                     itemNo = parseItemNo(result);
                     item.ItemId = itemNo;
+                    images = ParseImages(result);
+                    if (images.Count == 0)
+                    {
+                        int stop = 1;
+                    }
+                    else
+                        item.PictureUrl = dsutil.DSUtil.ListToDelimited(images.ToArray(), ';');
+                    Console.WriteLine("images: " + images.Count);
                 }
             }
             catch (Exception exc)
@@ -119,6 +127,35 @@ namespace wal
                 string err = exc.Message;
             }
             return item;
+        }
+
+        protected static List<string> ParseImages(string html)
+        {
+            const string marker = "assetSizeUrls\":{\"thumb\":\"";
+            //const string endMarker = ".jpeg";
+            const string endMarker = "odnHeight";
+            int endPos;
+            var images = new List<string>();
+            int pos = html.IndexOf(marker);
+            if (pos > -1)
+            {
+                bool done = false;
+
+                do
+                {
+                    endPos = html.IndexOf(endMarker, pos + 1);
+                    if (endPos > -1)
+                    {
+                        string img = html.Substring(pos + marker.Length, endPos - (pos + marker.Length) - 1);
+                        images.Add(img);
+                        pos = html.IndexOf(marker, endPos);
+                        if (pos == -1)
+                            done = true;
+                    }
+                    else done = true;
+                } while (!done);
+            }
+            return images;
         }
 
         protected static string parseItemNo(string html)
@@ -210,6 +247,7 @@ namespace wal
 
                         var detail = await GetDetail(item.DetailUrl);
                         item.ItemId = detail.ItemId;
+                        item.PictureUrl = detail.PictureUrl;
 
                         items.Add(item);
 
@@ -254,9 +292,13 @@ namespace wal
         {
             int count = items.Count();
             int i = 0;
-            foreach(WalItem item in items)
+            foreach (WalItem item in items)
             {
                 Console.WriteLine("store item " + (++i) + " of " + count);
+                if (i == 276)
+                {
+                    int e = 100;
+                }
                 if (item.Title.Length > 200)
                 {
                     int a = 100;
@@ -270,6 +312,12 @@ namespace wal
                     if (item.ItemId.Length > 20)
                     {
                         int c = 100;
+                    }
+                }
+                if (!string.IsNullOrEmpty(item.PictureUrl)) { 
+                    if (item.PictureUrl.Length > 6000)
+                    {
+                        int d = 100;
                     }
                 }
                 await db.ItemStore(item);
