@@ -140,7 +140,6 @@ namespace wal
             if (pos > -1)
             {
                 bool done = false;
-
                 do
                 {
                     endPos = html.IndexOf(endMarker, pos + 1);
