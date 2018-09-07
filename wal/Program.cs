@@ -5,6 +5,7 @@
  * 
  */
 
+using dsmodels;
 using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,8 @@ namespace wal
     class Program
     {
         private static string Log_File = "log.txt";
-        static walDB db = new walDB();
+        static walDB waldb = new walDB();
+        static DataModelsDB db = new DataModelsDB();
 
         static void Main(string[] args)
         {
@@ -41,7 +43,7 @@ namespace wal
                 Task.Run(async () =>
                 {
                     items = await GetItems(categoryId);
-                    db.RemoveItemRecords(categoryId);
+                    waldb.RemoveItemRecords(categoryId);
                     await StoreItems(items);
                 }).Wait();
 
@@ -391,7 +393,7 @@ namespace wal
                         int d = 100;
                     }
                 }
-                await db.ItemStore(item);
+                await waldb.ItemStore(item);
             }
         }
     }
