@@ -40,17 +40,17 @@ namespace wal
                 string url = "https://www.walmart.com/browse/toys/action-figures/4171_4172/?cat_id=4171_4172&facet=retailer%3AWalmart.com&grid=false&max_price=&min_price=35&page={0}#searchProductResult";
                 Task.Run(async () =>
                 {
-                    items = await GetItems(url, categoryId);
+                    items = await GetItems(categoryId);
                     db.RemoveItemRecords(categoryId);
                     await StoreItems(items);
                 }).Wait();
 
                 Console.WriteLine("complete");
-                Console.ReadKey();
+                //Console.ReadKey();
             }
         }
 
-        public static async Task<List<WalItem>> GetItems(string url, int categoryId)
+        public static async Task<List<WalItem>> GetItems(int categoryId)
         {
             bool done = false;
             int pageNum = 0;
@@ -65,6 +65,7 @@ namespace wal
 
             try
             {
+                string url = db.getUrl(categoryId);
                 while (!done)
                 {
                     ++pageNum;
@@ -100,6 +101,7 @@ namespace wal
         {
             var item = new WalItem();
             string itemNo = null;
+            string descr = null;
             var images = new List<string>();
 
             try
@@ -112,6 +114,20 @@ namespace wal
                     string result = await content.ReadAsStringAsync();
                     itemNo = parseItemNo(result);
                     item.ItemId = itemNo;
+                    if (itemNo == "568336078")
+                    {
+                        int stop = 1;
+                    }
+
+                    string marker = "\"product-short-description-wrapper\" itemprop=\"description\">";
+                    descr = parseDescr(result, marker, "<");
+                    if (string.IsNullOrEmpty(descr))
+                    {
+                        marker = "\"product_long_description\":{\"values\":[\"";
+                        descr = parseDescr(result, marker, "}");
+                    }
+                    item.Description = descr;
+
                     images = ParseImages(result);
                     if (images.Count == 0)
                     {
@@ -120,6 +136,13 @@ namespace wal
                     else
                         item.PictureUrl = dsutil.DSUtil.ListToDelimited(images.ToArray(), ';');
                     Console.WriteLine("images: " + images.Count);
+
+                    bool outOfStock = ParseOutOfStock(result);
+                    if (outOfStock)
+                    {
+                        int stop = 1;
+                    }
+                    item.OutOfStock = outOfStock;
                 }
             }
             catch (Exception exc)
@@ -127,6 +150,14 @@ namespace wal
                 string err = exc.Message;
             }
             return item;
+        }
+
+        protected static bool ParseOutOfStock(string html)
+        {
+            const string marker = "href=\"//schema.org/OutOfStock\"/>";
+            int pos = html.IndexOf(marker);
+            return (pos > -1) ? true : false;
+
         }
 
         protected static List<string> ParseImages(string html)
@@ -194,6 +225,44 @@ namespace wal
             return itemNo;
         }
 
+        protected static string parseDescr(string html, string marker, string endMarker)
+        {
+            const int maxlen = 11;
+            string descr = null;
+            bool done = false;
+            int pos = 0;
+            int endPos = 0;
+
+            pos = html.IndexOf(marker);
+            do
+            {
+                if (pos > -1)
+                {
+                    endPos = html.IndexOf(endMarker, pos);
+                    if (endPos > -1)
+                    {
+                        descr = html.Substring(pos + marker.Length, endPos - (pos + marker.Length));
+                        descr = descr.Trim();
+                        if (descr.Length < maxlen)
+                            done = true;
+                        else
+                        {
+                            pos = html.IndexOf(marker, endPos);
+                            if (pos == -1)
+                                done = true;
+                        }
+                    }
+                }
+                else
+                    done = true;
+            }
+            while (!done);
+
+            return descr;
+        }
+
+        //
+        // get title, price and detail URL
         // helpful to debugging to log page number
         public static async Task<List<WalItem>> ProcessTitles(string html, int pageNum, int categoryId)
         {
@@ -244,9 +313,12 @@ namespace wal
                         item.CategoryID = categoryId;
                         item.Price = Convert.ToDecimal(offerPrice);
 
+                        //item.DetailUrl = "https://www.walmart.com/ip/RustOleum-Protective-Enamel-Oil-Based-Gloss-Sunrise-Red/21798791";
                         var detail = await GetDetail(item.DetailUrl);
                         item.ItemId = detail.ItemId;
                         item.PictureUrl = detail.PictureUrl;
+                        item.Description = detail.Description;
+                        item.OutOfStock = detail.OutOfStock;
 
                         items.Add(item);
 
@@ -302,7 +374,7 @@ namespace wal
                 {
                     int a = 100;
                 }
-                if (item.DetailUrl.Length > 300)
+                if (item.DetailUrl.Length > 400)
                 {
                     int b = 100;
                 }

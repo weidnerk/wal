@@ -60,6 +60,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dsmodels\dsmodels\dsmodels.csproj">
+      <Project>{a34f18f9-50a8-4648-87a9-70743b810e71}</Project>
+      <Name>dsmodels</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\dsutil\dsutil.csproj">
       <Project>{7fa17f92-860b-4367-ab69-a3a417a29a79}</Project>
       <Name>dsutil</Name>
